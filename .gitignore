@@ -1,0 +1,16 @@
+# DJI Thermal SDK (EULA - download from DJI, see README)
+dji_thermal_sdk*/
+
+# Imagery, GIS and results never go in the repo
+*.JPG
+*.jpg
+*.png
+*.kmz
+*.kml
+*.pdf
+results/
+*.log
+
+__pycache__/
+*.pyc
+.venv/
