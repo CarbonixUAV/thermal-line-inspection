@@ -683,11 +683,13 @@ def process(job):
         # every warm blob in the GIS line corridor (or whole image) outside the sky;
         # parallax then decides what is on the ground
         zone = ~sky_mask(temps, pitch)
-        cond_corr, tower_corr, labels, depth = gis_corridor(temps.shape, meta, _NET, args)
-        corridor = cond_corr | tower_corr
-        if args.zone == "corridor":
-            zone &= corridor
-        labels = gis_corridor(temps.shape, meta, _NET, argparse.Namespace(**{**vars(args), "max_range": 1500}))[2]
+        corridor, labels, depth = None, [], None
+        if _NET is not None:   # optional: corridor, asset names and hotspot size
+            cond_corr, tower_corr, labels, depth = gis_corridor(temps.shape, meta, _NET, args)
+            corridor = cond_corr | tower_corr
+            if args.zone == "corridor":
+                zone &= corridor
+            labels = gis_corridor(temps.shape, meta, _NET, argparse.Namespace(**{**vars(args), "max_range": 1500}))[2]
         spots = find_hotspots(temps, zone, args.delta, args.min_temp, args.min_area, args.min_above_scene) \
             if zone.any() else []
         for s, tests in zip(spots, parallax_tests(path, temps, meta, spots) if spots else []):
@@ -703,7 +705,7 @@ def process(job):
         for s in spots:
             s["range_m"] = s["size_m2"] = None
             x0, y0, x1, y1 = s["bbox"]
-            d = depth[y0:y1, x0:x1]
+            d = depth[y0:y1, x0:x1] if depth is not None else np.zeros(0)
             if (d > 0).any():
                 s["range_m"] = float(np.median(d[d > 0]))
                 s["size_m2"] = s["area_px"] * (s["range_m"] / FOCAL_PX) ** 2
@@ -715,7 +717,7 @@ def process(job):
             "min_temp": round(float(temps.min()), 2),
             "median_temp": round(float(np.median(temps)), 2),
             "max_temp": round(float(temps.max()), 2),
-            "line_in_view": bool(corridor.any()),
+            "line_in_view": bool(corridor.any()) if corridor is not None else "",
             "n_hotspots": len(real), "n_excluded": len(spots) - len(real),
             "worst_delta_t": round(real[0]["delta_t"], 2) if real else "",
             "worst_severity": severity(real[0]["delta_t"]) if real else "",
@@ -756,10 +758,11 @@ def write_csv(path, rows):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folders", nargs="+", help="folders of _T.JPG images")
-    ap.add_argument("--network", required=True, help="tower-structure KMZ (GIS) for the line corridor and asset names")
+    ap.add_argument("--network", help="optional tower-structure KMZ: limits the search to the line corridor, names the "
+                                      "nearest span/tower and sizes hotspots. Without it the whole image is searched")
     ap.add_argument("--out", default=None, help="output folder (default results/<timestamp>)")
     ap.add_argument("--zone", choices=("corridor", "image"), default="corridor",
-                    help="look for hotspots in the GIS line corridor (default) or the whole image")
+                    help="with --network: look for hotspots in the line corridor (default) or the whole image")
     ap.add_argument("--delta", type=float, default=3.0, help="degC above local background to flag (default 3)")
     ap.add_argument("--min-temp", type=float, default=None, help="also flag anything above this absolute degC")
     ap.add_argument("--min-above-scene", type=float, default=0.0,
@@ -780,7 +783,7 @@ def main():
     args = ap.parse_args()
 
     args.out = str(Path(args.out or Path("results") / dt.datetime.now().strftime("%Y%m%d_%H%M%S")).resolve())
-    args.network = str(Path(args.network).resolve())
+    args.network = str(Path(args.network).resolve()) if args.network else None
     Path(args.out).mkdir(parents=True, exist_ok=True)
     (Path(args.out) / "run_args.json").write_text(json.dumps(vars(args), indent=1))  # review app reuses these
     jobs = []
@@ -790,15 +793,25 @@ def main():
         jobs += [(str(p), folder.name, args) for p in files[: args.limit]]
     print(f"{len(jobs)} images -> {args.out} using {args.workers} workers")
 
-    pos = [read_xmp(p) for p, _, _ in jobs[:: max(1, len(jobs) // 500)]]
-    lats = [float(m["GpsLatitude"]) for m in pos if m["GpsLatitude"]]
-    lons = [float(m["GpsLongitude"]) for m in pos if m["GpsLongitude"]]
-    pad = 0.03  # ~3 km
-    net = load_network(args.network, (min(lats) - pad, max(lats) + pad, min(lons) - pad, max(lons) + pad))
-    if not net["spans"]:
-        sys.exit(f"No spans in {args.network} near these flights")
-    circuits = sorted({t["circuit"] for t in net["towers"]})
-    print(f"GIS: {len(net['towers'])} structures, {len(net['spans'])} spans near the flights ({', '.join(circuits)})")
+    net = None
+    if args.network:
+        try:
+            pos = [read_xmp(p) for p, _, _ in jobs[:: max(1, len(jobs) // 500)]]
+            lats = [float(m["GpsLatitude"]) for m in pos if m["GpsLatitude"]]
+            lons = [float(m["GpsLongitude"]) for m in pos if m["GpsLongitude"]]
+            pad = 0.03  # ~3 km
+            net = load_network(args.network, (min(lats) - pad, max(lats) + pad, min(lons) - pad, max(lons) + pad))
+            if not net["spans"]:
+                raise ValueError("no towers/spans in a recognised format near these flights")
+            circuits = sorted({t["circuit"] for t in net["towers"]})
+            print(f"GIS: {len(net['towers'])} structures, {len(net['spans'])} spans near the flights ({', '.join(circuits)})")
+        except Exception as e:
+            net = None
+            print(f"WARNING: not using {args.network} ({e}); searching the whole image")
+    if net is None:
+        args.zone = "image"
+        print("No GIS: whole image searched, no asset names or hotspot sizes")
+    (Path(args.out) / "run_args.json").write_text(json.dumps(vars(args), indent=1))
 
     t0 = time.time()
     img_rows, spot_rows = [], []
