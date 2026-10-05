@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thermal Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #121417; --panel: #1b1e23; --panel2: #23272e; --line: #333941; --text: #e6e8eb; --dim: #9aa3ad;
+  --accent: #4aa3ff; --real: #2ecc71; --fp: #8a8f98; --minor: #f1c40f; --major: #ff8c1a; --severe: #ff3b3b; --cat: #ff3bff;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.35 system-ui, Segoe UI, sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); height: 44px; }
+header h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 600; }
+.tabs button { background: none; border: 0; color: var(--dim); font: inherit; font-size: 14px; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--text); border-color: var(--accent); }
+.tabs .n { background: var(--panel2); border-radius: 9px; padding: 0 6px; margin-left: 4px; font-size: 11px; }
+#progress { margin-left: auto; color: var(--dim); }
+#saved { color: var(--dim); font-size: 12px; min-width: 60px; text-align: right; }
+main { display: grid; grid-template-columns: 290px 1fr 380px; height: calc(100% - 44px); }
+#reportpane { height: calc(100% - 44px); max-width: none; } #reportpane > div { max-width: 1100px; }
+aside, .right { background: var(--panel); overflow: auto; }
+aside { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+.right { border-left: 1px solid var(--line); padding: 10px 12px; }
+.filters { padding: 8px 10px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.filters label { color: var(--dim); font-size: 11px; display: flex; flex-direction: column; gap: 2px; }
+.filters .wide { grid-column: span 2; flex-direction: row; align-items: center; gap: 6px; }
+select, input, textarea { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; font: inherit; padding: 4px 6px; }
+textarea { width: 100%; resize: vertical; }
+#list { overflow: auto; flex: 1; }
+.item { display: flex; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; align-items: center; }
+.item:hover { background: var(--panel2); }
+.item.on { background: #22344a; }
+.item img { width: 72px; height: 58px; object-fit: cover; border-radius: 3px; background: #000; flex: none; }
+.item .t { font-weight: 600; font-size: 12px; }
+.item .s { color: var(--dim); font-size: 11px; }
+.pill { display: inline-block; border-radius: 8px; padding: 0 6px; font-size: 11px; margin-right: 3px; color: #111; font-weight: 600; }
+.p-PT180 { background: var(--minor); } .p-PT90 { background: var(--major); } .p-PT30 { background: var(--severe); color: #fff; }
+.p-PT1 { background: var(--cat); } .p-elev { background: #4aa3ff; color: #fff; } .p-real { background: var(--real); } .p-fp { background: var(--fp); } .p-todo { background: #3a4049; color: var(--text); }
+.center { position: relative; overflow: hidden; background: #000; }
+canvas#view { width: 100%; height: 100%; display: block; cursor: crosshair; }
+.toolbar { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; background: rgba(20,22,26,.88); padding: 4px; border-radius: 6px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 16px); }
+.toolbar button, .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; cursor: pointer; font: inherit; }
+.toolbar button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.toolbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.toolbar input[type=number] { width: 62px; }
+.btn.real { border-color: var(--real); } .btn.real:hover, .btn.real.on { background: var(--real); color: #111; }
+.btn.fp { border-color: var(--fp); } .btn.fp:hover, .btn.fp.on { background: var(--fp); color: #111; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#readout { position: absolute; bottom: 8px; left: 8px; background: rgba(20,22,26,.88); padding: 4px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+#help { position: absolute; bottom: 8px; right: 8px; background: rgba(20,22,26,.88); padding: 4px 8px; border-radius: 4px; color: var(--dim); font-size: 11px; max-width: 60%; text-align: right; }
+h2 { font-size: 13px; margin: 14px 0 6px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+h2:first-child { margin-top: 2px; }
+table.hs { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.hs td, table.hs th { padding: 4px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+table.hs tr { cursor: pointer; } table.hs tr.on { background: #22344a; }
+table.hs th { color: var(--dim); font-weight: 500; font-size: 11px; }
+.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 8px; align-items: center; }
+.kv label { color: var(--dim); font-size: 12px; }
+.kv input, .kv select, .kv textarea { width: 100%; }
+.vis { position: relative; margin-top: 6px; background: #000; min-height: 60px; }
+.vis img { width: 100%; display: block; }
+.vis .mark { position: absolute; border: 2px solid #2ecc71; box-shadow: 0 0 0 1px #000; pointer-events: none; }
+.dim { color: var(--dim); } .big { font-size: 18px; font-weight: 600; }
+.empty { padding: 30px; color: var(--dim); text-align: center; }
+.reportwrap { overflow: auto; padding: 18px 24px; max-width: 1100px; }
+.reportwrap .kv { grid-template-columns: 180px 1fr; max-width: 720px; }
+table.wx { border-collapse: collapse; margin: 6px 0; } table.wx td, table.wx th { padding: 2px; } table.wx input { width: 110px; }
+.note { background: var(--panel2); border-left: 3px solid var(--accent); padding: 8px 10px; margin: 10px 0; color: var(--dim); }
+kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 11px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Thermal Review</h1>
+  <div class="tabs">
+    <button data-tab="review" class="on">1 · Review detections<span class="n" id="n-review"></span></button>
+    <button data-tab="analyse">2 · Analyse confirmed<span class="n" id="n-analyse"></span></button>
+    <button data-tab="report">3 · Report</button>
+  </div>
+  <div id="progress"></div>
+  <div id="saved"></div>
+</header>
+<main id="main">
+  <aside>
+    <div class="filters" id="filters"></div>
+    <div id="list"></div>
+  </aside>
+  <div class="center">
+    <canvas id="view"></canvas>
+    <div class="toolbar" id="toolbar"></div>
+    <div id="readout"></div>
+    <div id="help"></div>
+  </div>
+  <div class="right" id="right"></div>
+</main>
+<div id="reportpane" class="reportwrap" hidden></div>
+
+<script>
+"use strict";
+const REASONS = ["Cow / animal", "Tree / vegetation", "Vehicle / machinery", "Building / structure",
+                 "Ground / sun heating", "Reflection", "Other"];
+// priority from delta T, same bands as the report: PT 180 <10, PT 90 10-30, PT 30 30-80, PT 1 >80 °C
+const PT_ORDER = { "PT 180": 1, "PT 90": 2, "PT 30": 3, "PT 1": 4 };
+const ptOf = h => h.delta_t >= 80 ? "PT 1" : h.delta_t >= 30 ? "PT 30" : h.delta_t >= 10 ? "PT 90" : "PT 180";
+const ptCls = pt => "p-" + pt.replace(" ", "");
+const shotTime = f => (f.match(/DJI_(\d{14})_/) || [0, f])[1];   // acquisition time from DJI file name
+let DATA, REVIEW, PAL, PRIOS;
+let tab = "review", current = null, selHot = null, selMeas = null, tool = "select";
+let reason = REASONS[0];
+const temps = {};           // file -> {w,h,t:Float32Array}
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = v => v == null || isNaN(v) ? "–" : (+v).toFixed(1);
+
+// ------------------------------------------------------------ state helpers
+function st(f) {
+  const s = REVIEW.images[f] ??= { hotspots: {} };
+  s.hotspots ??= {};
+  return s;
+}
+function hotStatus(f, id) { return REVIEW.images[f]?.hotspots?.[id]?.status || "todo"; }
+// elevated (parallax) first, then hottest; optional "elevated only" filter. Reviewed hotspots always stay visible.
+const parRank = h => h.parallax === "elevated" ? 0 : 1;
+function visibleHots(img) {
+  return img.hotspots.filter(h => hotStatus(img.file, h.id) !== "todo" ||
+      ((showExcluded || !h.note) && (showUndecided || h.note || !UNDECIDED.includes(h.parallax)) &&
+       (F.par !== "elevated" || h.parallax === "elevated")))
+    .sort((a, b) => parRank(a) - parRank(b) || (b.delta_t || 0) - (a.delta_t || 0));
+}
+const nElevated = img => visibleHots(img).filter(h => h.parallax === "elevated" && !h.note).length;
+const parBadge = h => h.parallax === "elevated" ? '<span class="pill p-elev" title="shifts against the ground between photos: off the ground">↑</span>'
+  : h.parallax === "untested" ? '<span class="pill p-todo" title="parallax could not be tested (no matching neighbour photo, hovering, or too small)">–</span>'
+  : h.parallax === "unknown" ? '<span class="pill p-todo" title="parallax tested but ambiguous">?</span>'
+  : h.parallax === "far" ? '<span class="pill p-todo" title="too far away (near the horizon) to test">far</span>'
+  : h.parallax === "tiny" ? '<span class="pill p-todo" title="too small to track between photos">tiny</span>' : "";
+function counts(img) {
+  let real = 0, fp = 0, todo = 0;
+  for (const h of visibleHots(img)) { const s = hotStatus(img.file, h.id); s === "real" ? real++ : s === "fp" ? fp++ : todo++; }
+  return { real, fp, todo };
+}
+function worstPT(img) {
+  let w = "PT 180";
+  for (const h of visibleHots(img)) if (!h.note && PT_ORDER[ptOf(h)] > PT_ORDER[w]) w = ptOf(h);
+  return w;
+}
+function realHots(img) { return img.hotspots.filter(h => hotStatus(img.file, h.id) === "real"); }
+function priorityFor(dt) { return ptOf({ delta_t: dt }); }
+
+let saveTimer = null;
+function save() {
+  $("#saved").textContent = "saving…";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const r = await fetch("/api/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(REVIEW) });
+      $("#saved").textContent = r.ok ? "saved" : "save failed";
+    } catch { $("#saved").textContent = "save failed"; }
+  }, 500);
+}
+
+// --------------------------------------------------------------- temps/stats
+async function loadTemps(f) {
+  if (temps[f]) return temps[f];
+  const r = await fetch("/api/temps/" + encodeURIComponent(f));
+  const w = +r.headers.get("X-Width"), h = +r.headers.get("X-Height");
+  const raw = new Int16Array(await r.arrayBuffer());
+  const t = new Float32Array(raw.length);
+  let mn = Infinity, mx = -Infinity;
+  for (let i = 0; i < raw.length; i++) { const v = raw[i] / 100; t[i] = v; if (v < mn) mn = v; if (v > mx) mx = v; }
+  const keys = Object.keys(temps); if (keys.length > 12) delete temps[keys[0]];
+  // auto range comes from the server with the sky left out
+  return temps[f] = { w, h, t, min: mn, max: mx, autoLo: +r.headers.get("X-Auto-Lo"), autoHi: +r.headers.get("X-Auto-Hi"),
+                      skyFrac: +r.headers.get("X-Sky-Frac") };
+}
+function values(T, m) {
+  const p = m.pts, out = [];
+  const at = (x, y) => T.t[Math.min(Math.max(y, 0), T.h - 1) * T.w + Math.min(Math.max(x, 0), T.w - 1)];
+  if (m.type === "point") return [at(Math.round(p[0][0]), Math.round(p[0][1]))];
+  if (m.type === "box") {
+    const x0 = Math.max(0, Math.round(Math.min(p[0][0], p[1][0]))), x1 = Math.min(T.w - 1, Math.round(Math.max(p[0][0], p[1][0])));
+    const y0 = Math.max(0, Math.round(Math.min(p[0][1], p[1][1]))), y1 = Math.min(T.h - 1, Math.round(Math.max(p[0][1], p[1][1])));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) out.push(T.t[y * T.w + x]);
+    return out;
+  }
+  const [a, b] = p, n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) + 1;
+  for (let i = 0; i < n; i++) { const s = n > 1 ? i / (n - 1) : 0; out.push(at(Math.round(a[0] + s * (b[0] - a[0])), Math.round(a[1] + s * (b[1] - a[1])))); }
+  return out;
+}
+function stats(T, m) {
+  const v = values(T, m); if (!v.length) return null;
+  let mx = -Infinity, mn = Infinity, sum = 0;
+  for (const x of v) { if (x > mx) mx = x; if (x < mn) mn = x; sum += x; }
+  return { max: mx, min: mn, mean: sum / v.length, n: v.length };
+}
+
+// -------------------------------------------------------------------- viewer
+const cv = $("#view"), ctx = cv.getContext("2d");
+const off = document.createElement("canvas"), octx = off.getContext("2d");
+let V = { s: 1, tx: 0, ty: 0 }, T = null, renderKey = "";
+let palette = "iron", rangeLo = null, rangeHi = null;
+let showExcluded = false, showUndecided = false;
+const UNDECIDED = ["unknown", "far", "tiny"];
+
+function fit() {
+  const r = cv.getBoundingClientRect();
+  cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio;
+  if (!T) return;
+  const s = Math.min(cv.width / T.w, cv.height / T.h);
+  V = { s, tx: (cv.width - T.w * s) / 2, ty: (cv.height - T.h * s) / 2 };
+}
+function toImg(ex, ey) { return [(ex * devicePixelRatio - V.tx) / V.s, (ey * devicePixelRatio - V.ty) / V.s]; }
+function toScr(x, y) { return [x * V.s + V.tx, y * V.s + V.ty]; }
+function currentRange() {
+  const a = tab === "analyse" && current ? st(current.file).analysis : null;
+  // auto: don't let cold sky stretch the scale; always include the hottest confirmed spot
+  const hotMax = current ? Math.max(-Infinity, ...realHots(current).map(h => h.max_temp)) : -Infinity;
+  const lo = a?.range_lo ?? T.autoLo, hi = a?.range_hi ?? Math.max(T.autoHi + 2, hotMax + 1, lo + 5);
+  return [lo, hi];
+}
+function renderOff() {
+  const [lo, hi] = currentRange();
+  const pal = (tab === "analyse" && current && st(current.file).analysis?.palette) || palette;
+  const key = current.file + pal + lo + hi;
+  if (key === renderKey) return;
+  renderKey = key;
+  off.width = T.w; off.height = T.h;
+  const im = octx.createImageData(T.w, T.h), lut = PAL[pal] || PAL.iron, k = 255 / Math.max(hi - lo, 1e-3);
+  for (let i = 0; i < T.t.length; i++) {
+    const c = lut[Math.max(0, Math.min(255, ((T.t[i] - lo) * k) | 0))];
+    im.data[i * 4] = c[0]; im.data[i * 4 + 1] = c[1]; im.data[i * 4 + 2] = c[2]; im.data[i * 4 + 3] = 255;
+  }
+  octx.putImageData(im, 0, 0);
+}
+function ptColour(pt) { return { "PT 180": "#f1c40f", "PT 90": "#ff8c1a", "PT 30": "#ff3b3b", "PT 1": "#ff3bff" }[pt] || "#f1c40f"; }
+
+function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (!T || !current) return;
+  renderOff();
+  ctx.imageSmoothingEnabled = V.s < 1;
+  ctx.drawImage(off, V.tx, V.ty, T.w * V.s, T.h * V.s);
+  drawOverlays();
+  const d = devicePixelRatio;
+  ctx.lineWidth = 2 * d; ctx.font = `${12 * d}px system-ui`;
+  if (tab === "review") {
+    visibleHots(current).forEach((h, i) => {
+      const s = hotStatus(current.file, h.id), pad = 4;
+      const [x0, y0] = toScr(h.bbox[0] - pad, h.bbox[1] - pad), [x1, y1] = toScr(h.bbox[2] + pad, h.bbox[3] + pad);
+      ctx.setLineDash(s === "fp" ? [5 * d, 4 * d] : []);
+      ctx.strokeStyle = s === "real" ? "#2ecc71" : s === "fp" ? "#8a8f98" : ptColour(ptOf(h));
+      if (h.note && s === "todo") ctx.strokeStyle = "#b0b0b0";
+      ctx.lineWidth = (selHot === h.id ? 3.5 : 2) * d;
+      ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      if (selHot === h.id) { ctx.setLineDash([]); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1 * d; ctx.strokeRect(x0 - 3 * d, y0 - 3 * d, x1 - x0 + 6 * d, y1 - y0 + 6 * d); }
+      ctx.setLineDash([]);
+      const full = selHot === h.id;
+      const lab = s === "fp" ? (full ? `#${h.id} ✗ ${REVIEW.images[current.file].hotspots[h.id].reason || ""}` : `✗${h.id}`)
+                : full ? `#${h.id} ${fmt(h.max_temp)}°C +${fmt(h.delta_t)}` : `${h.id}`;
+      ctx.fillStyle = "rgba(0,0,0,.6)"; const tw = ctx.measureText(lab).width;
+      ctx.fillRect(x1 + 3 * d, y0 - 1 * d, tw + 6 * d, 16 * d);
+      ctx.fillStyle = ctx.strokeStyle === "#ffffff" ? "#fff" : (s === "real" ? "#2ecc71" : s === "fp" ? "#c0c4ca" : "#fff");
+      ctx.fillText(lab, x1 + 6 * d, y0 + 11 * d);
+    });
+  } else {
+    const ms = st(current.file).analysis?.measurements || [];
+    for (const m of ms) drawMeas(m, m === selMeas);
+    if (drag && drag.kind === "new") drawMeas(drag.m, true);
+  }
+}
+function drawMeas(m, sel) {
+  const d = devicePixelRatio, p = m.pts.map(([x, y]) => toScr(x + 0.5, y + 0.5));
+  ctx.strokeStyle = sel ? "#fff" : m.type === "point" ? "#3ad7ff" : m.type === "line" ? "#2ecc71" : "#52b6ff";
+  ctx.lineWidth = (sel ? 2.5 : 1.8) * d;
+  if (m.type === "point") {
+    const [x, y] = p[0], r = 14 * d;
+    ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke();
+  } else if (m.type === "box") {
+    ctx.strokeRect(Math.min(p[0][0], p[1][0]), Math.min(p[0][1], p[1][1]), Math.abs(p[1][0] - p[0][0]), Math.abs(p[1][1] - p[0][1]));
+  } else {
+    ctx.beginPath(); ctx.moveTo(...p[0]); ctx.lineTo(...p[1]); ctx.stroke();
+  }
+  if (sel) for (const q of p) { ctx.fillStyle = "#fff"; ctx.fillRect(q[0] - 4 * d, q[1] - 4 * d, 8 * d, 8 * d); }
+  const s = stats(T, m);
+  const txt = m.type === "point" ? `${m.label} ${fmt(s?.max)}°C` : `${m.label} max ${fmt(s?.max)}`;
+  const [lx, ly] = m.type === "box" ? [Math.min(p[0][0], p[1][0]), Math.min(p[0][1], p[1][1]) - 5 * d] : [p[0][0] + 8 * d, p[0][1] - 8 * d];
+  ctx.font = `${12 * d}px system-ui`;
+  ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect(lx - 2 * d, ly - 12 * d, ctx.measureText(txt).width + 6 * d, 16 * d);
+  ctx.fillStyle = "#fff"; ctx.fillText(txt, lx + 1 * d, ly);
+}
+
+// -------------------------------------------------------------- mouse input
+let drag = null;
+cv.addEventListener("wheel", e => {
+  e.preventDefault(); if (!T) return;
+  const k = Math.exp(-e.deltaY * 0.0015), mx = e.offsetX * devicePixelRatio, my = e.offsetY * devicePixelRatio;
+  V.tx = mx - (mx - V.tx) * k; V.ty = my - (my - V.ty) * k; V.s *= k; draw();
+}, { passive: false });
+cv.addEventListener("contextmenu", e => e.preventDefault());
+
+function hitMeas(x, y) {
+  const ms = st(current.file).analysis?.measurements || [], tol = 8 / V.s * devicePixelRatio;
+  for (let i = ms.length - 1; i >= 0; i--) {
+    const m = ms[i];
+    for (let k = 0; k < m.pts.length; k++) if (Math.hypot(m.pts[k][0] - x, m.pts[k][1] - y) < tol) return { m, handle: k };
+    if (m.type === "box") {
+      const [a, b] = m.pts;
+      if (x >= Math.min(a[0], b[0]) - tol && x <= Math.max(a[0], b[0]) + tol && y >= Math.min(a[1], b[1]) - tol && y <= Math.max(a[1], b[1]) + tol) return { m, handle: -1 };
+    } else if (m.type === "line") {
+      const [a, b] = m.pts, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const t = Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / (L * L)));
+      if (Math.hypot(a[0] + t * (b[0] - a[0]) - x, a[1] + t * (b[1] - a[1]) - y) < tol) return { m, handle: -1 };
+    }
+  }
+  return null;
+}
+function hitHot(x, y) {
+  let best = null;
+  for (const h of visibleHots(current)) {
+    const pad = 6 / V.s * devicePixelRatio + 4;
+    if (x >= h.bbox[0] - pad && x <= h.bbox[2] + pad && y >= h.bbox[1] - pad && y <= h.bbox[3] + pad) {
+      const a = (h.bbox[2] - h.bbox[0]) * (h.bbox[3] - h.bbox[1]);
+      if (!best || a < best.a) best = { h, a };
+    }
+  }
+  return best?.h;
+}
+function nextLabel(type) {
+  const pre = { point: "Sp", box: "Ar", line: "Li" }[type];
+  const used = new Set((st(current.file).analysis?.measurements || []).map(m => m.label));
+  let i = 1; while (used.has(pre + i)) i++; return pre + i;
+}
+cv.addEventListener("mousedown", e => {
+  if (!T) return;
+  const [x, y] = toImg(e.offsetX, e.offsetY);
+  const pan = e.button === 1 || e.button === 2 || (tool === "select" && e.button === 0 && !(tab === "analyse" && hitMeas(x, y)) && !(tab === "review" && hitHot(x, y)));
+  if (tab === "review" && e.button === 0) { const h = hitHot(x, y); if (h) { selectHot(h.id); return; } }
+  if (pan) { drag = { kind: "pan", sx: e.offsetX, sy: e.offsetY, tx: V.tx, ty: V.ty, moved: false }; return; }
+  if (tab !== "analyse") return;
+  const a = st(current.file).analysis;
+  if (tool === "select") {
+    const hit = hitMeas(x, y); selMeas = hit.m;
+    drag = { kind: "edit", hit, x0: x, y0: y, orig: hit.m.pts.map(p => [...p]) };
+    renderRight(); draw(); return;
+  }
+  const xi = Math.round(x - 0.5), yi = Math.round(y - 0.5);
+  if (xi < 0 || yi < 0 || xi >= T.w || yi >= T.h) return;
+  const m = { type: tool, label: nextLabel(tool), pts: tool === "point" ? [[xi, yi]] : [[xi, yi], [xi, yi]] };
+  if (tool === "point") { a.measurements.push(m); selMeas = m; save(); renderRight(); draw(); return; }
+  drag = { kind: "new", m };
+});
+window.addEventListener("mousemove", e => {
+  if (!T || !current) return;
+  const r = cv.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
+  const [x, y] = toImg(ox, oy);
+  const xi = Math.floor(x), yi = Math.floor(y);
+  if (ox >= 0 && oy >= 0 && ox < r.width && oy < r.height && xi >= 0 && yi >= 0 && xi < T.w && yi < T.h)
+    $("#readout").textContent = `x ${xi}  y ${yi}   ${T.t[yi * T.w + xi].toFixed(1)} °C`;
+  if (!drag) return;
+  if (drag.kind === "pan") {
+    V.tx = drag.tx + (ox - drag.sx) * devicePixelRatio; V.ty = drag.ty + (oy - drag.sy) * devicePixelRatio; drag.moved = true; draw(); return;
+  }
+  const xc = Math.max(0, Math.min(T.w - 1, Math.round(x - 0.5))), yc = Math.max(0, Math.min(T.h - 1, Math.round(y - 0.5)));
+  if (drag.kind === "new") { drag.m.pts[1] = [xc, yc]; draw(); renderLive(drag.m); return; }
+  if (drag.kind === "edit") {
+    const { hit, orig } = drag;
+    if (hit.handle >= 0) hit.m.pts[hit.handle] = [xc, yc];
+    else { const dx = Math.round(x - drag.x0), dy = Math.round(y - drag.y0); hit.m.pts = orig.map(([px, py]) => [px + dx, py + dy]); }
+    draw(); renderLive(hit.m);
+  }
+});
+window.addEventListener("mouseup", () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.kind === "new") {
+    const [a, b] = d.m.pts;
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= 2) { st(current.file).analysis.measurements.push(d.m); selMeas = d.m; save(); }
+  }
+  if (d.kind === "edit") save();
+  if (d.kind !== "pan") renderRight();
+  draw();
+});
+
+// ---------------------------------------------------------------- keyboard
+document.addEventListener("keydown", e => {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === "arrowright" || k === "j") { step(1); e.preventDefault(); }
+  else if (k === "arrowleft" || k === "k") { step(-1); e.preventDefault(); }
+  else if (k === "0") { fit(); draw(); }
+  if (tab === "review") {
+    if (k === "r") mark("real");
+    else if (k === "f") mark("fp");
+    else if (k === "a") markRest("fp");
+    else if (k === "u") markRest("fp", h => h.parallax !== "elevated");
+    else if (k === "n") nextUnreviewed();
+    else if (k === "arrowdown") { moveHot(1); e.preventDefault(); }
+    else if (k === "arrowup") { moveHot(-1); e.preventDefault(); }
+    else if (/^[1-7]$/.test(k)) { reason = REASONS[+k - 1]; renderRight(); }
+  } else if (tab === "analyse") {
+    if (k === "v") setTool("select"); else if (k === "p") setTool("point"); else if (k === "b") setTool("box"); else if (k === "l") setTool("line");
+    else if ((k === "delete" || k === "backspace") && selMeas) { delMeas(selMeas); e.preventDefault(); }
+  }
+});
+
+// --------------------------------------------------------------- list/filter
+let F = { group: "", status: "todo", pt: "PT 180", par: "all" };
+try { Object.assign(F, JSON.parse(localStorage.getItem("thermalReviewFilters") || "{}")); } catch {}
+const saveFilters = () => { try { localStorage.setItem("thermalReviewFilters", JSON.stringify(F)); } catch {} };
+function listItems() {
+  if (tab === "analyse") return DATA.images.filter(im => realHots(im).length);
+  return DATA.images.filter(im => {
+    if (F.group && im.group !== F.group) return false;
+    const vh = visibleHots(im); if (!vh.length) return false;
+    if (!showExcluded && PT_ORDER[worstPT(im)] < PT_ORDER[F.pt]) return false;
+    const c = counts(im);
+    if (F.status === "todo" && !c.todo) return false;
+    if (F.status === "real" && !c.real) return false;
+    if (F.status === "fp" && (c.real || c.todo)) return false;
+    return true;
+  });
+}
+let ITEMS = [];
+function renderFilters() {
+  if (tab === "analyse") { $("#filters").innerHTML = `<div class="wide dim">Photos with at least one confirmed hotspot. Tick “include in report” on the right.</div>`; return; }
+  const groups = [...new Set(DATA.images.map(i => i.group))];
+  $("#filters").innerHTML = `
+    <label>Flight<select id="f-group"><option value="">All</option>${groups.map(g => `<option ${F.group === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select></label>
+    <label>Status<select id="f-status">
+      <option value="todo" ${F.status === "todo" ? "selected" : ""}>Needs review</option>
+      <option value="all" ${F.status === "all" ? "selected" : ""}>All</option>
+      <option value="real" ${F.status === "real" ? "selected" : ""}>Has confirmed</option>
+      <option value="fp" ${F.status === "fp" ? "selected" : ""}>All false positive</option></select></label>
+    <label>Priority at least<select id="f-sev">${Object.keys(PT_ORDER).map(s => `<option ${F.pt === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+    ${DATA.images.some(i => i.hotspots.some(h => h.parallax)) ? `<label>Parallax<select id="f-par">
+      <option value="all" ${F.par === "all" ? "selected" : ""}>All kept</option>
+      <option value="elevated" ${F.par === "elevated" ? "selected" : ""}>Elevated only ↑</option></select></label>` : ""}
+    <label class="wide"><input type="checkbox" id="f-excl" ${showExcluded ? "checked" : ""}> show auto-excluded (ground / moving / animals)${DATA.hidden?.excluded ? ` <span class="dim">(${DATA.hidden.excluded.toLocaleString()} hidden)</span>` : ""}</label>
+    ${DATA.images.some(i => i.hotspots.some(h => h.parallax)) || DATA.hidden?.undecided ? `<label class="wide"><input type="checkbox" id="f-und" ${showUndecided ? "checked" : ""}> show undecided / too far / too small<span class="dim" title="On the reviewed runs this hid 2 of 21 known faults (tiny, distant hotspots)"> ⓘ</span>${DATA.hidden?.undecided ? ` <span class="dim">(${DATA.hidden.undecided.toLocaleString()} hidden)</span>` : ""}</label>` : ""}`;
+  $("#f-group").onchange = e => { F.group = e.target.value; saveFilters(); renderList(); };
+  $("#f-status").onchange = e => { F.status = e.target.value; saveFilters(); renderList(); };
+  $("#f-sev").onchange = e => { F.pt = e.target.value; saveFilters(); renderList(); };
+  if ($("#f-par")) $("#f-par").onchange = e => { F.par = e.target.value; saveFilters(); renderList(); if (current) { renderRight(); draw(); } };
+  $("#f-excl").onchange = e => { showExcluded = e.target.checked; reloadData(); };
+  if ($("#f-und")) $("#f-und").onchange = e => { showUndecided = e.target.checked; reloadData(); };
+}
+function renderList() {
+  ITEMS = listItems();
+  // acquisition order, so neighbouring photos (same place, same time of day) are reviewed together
+  ITEMS.sort((a, b) => shotTime(a.file).localeCompare(shotTime(b.file)) || a.file.localeCompare(b.file));
+  const L = $("#list");
+  if (!ITEMS.length) { L.innerHTML = `<div class="empty">${tab === "analyse" ? "No confirmed hotspots yet – mark some as Real in step 1." : "Nothing matches these filters. 🎉"}</div>`; }
+  else L.innerHTML = ITEMS.map(im => {
+    const c = counts(im), a = REVIEW.images[im.file]?.analysis;
+    const badge = tab === "analyse"
+      ? `<span class="pill p-real">${c.real} real</span>${a?.include === false ? '<span class="pill p-fp">excluded</span>' : ""}`
+      : `<span class="pill ${ptCls(worstPT(im))}">${worstPT(im)}</span>${nElevated(im) ? `<span class="pill p-elev">↑${nElevated(im)}</span>` : ""}${c.real ? `<span class="pill p-real">✓${c.real}</span>` : ""}${c.fp ? `<span class="pill p-fp">✗${c.fp}</span>` : ""}${c.todo ? `<span class="pill p-todo">?${c.todo}</span>` : ""}`;
+    return `<div class="item ${current?.file === im.file ? "on" : ""}" data-f="${esc(im.file)}">
+      <img loading="lazy" src="/api/thumb/${encodeURIComponent(im.file)}">
+      <div><div class="t">${esc(im.file.replace(/^DJI_/, "").replace(/_T\.JPG$/i, ""))}</div>
+      <div class="s">${esc(shotTime(im.file).replace(/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$/, "$3/$2 $4:$5:$6"))} · ${esc(im.group)} · ${esc(visibleHots(im)[0]?.asset || "")}</div><div>${badge}</div></div></div>`;
+  }).join("");
+  L.querySelectorAll(".item").forEach(el => el.onclick = () => open(DATA.images.find(i => i.file === el.dataset.f)));
+  updateCounts();
+}
+function updateCounts() {
+  let todo = 0, real = 0, fp = 0;
+  for (const im of DATA.images) { const c = counts(im); todo += c.todo; real += c.real; fp += c.fp; }
+  $("#n-review").textContent = todo;
+  $("#n-analyse").textContent = DATA.images.filter(im => realHots(im).length).length;
+  $("#progress").innerHTML = `<span class="pill p-real">${real} real</span><span class="pill p-fp">${fp} false +</span><span class="pill p-todo">${todo} to review</span>`;
+}
+function step(dir) {
+  if (!ITEMS.length) return;
+  const i = ITEMS.findIndex(im => im.file === current?.file);
+  const n = ITEMS[Math.max(0, Math.min(ITEMS.length - 1, i < 0 ? 0 : i + dir))];
+  if (n) open(n);
+}
+function nextUnreviewed() {
+  const i = ITEMS.findIndex(im => im.file === current?.file);
+  const rest = [...ITEMS.slice(i + 1), ...ITEMS.slice(0, i + 1)];
+  const n = rest.find(im => counts(im).todo && im.file !== current?.file);
+  if (n) open(n);
+}
+
+// ----------------------------------------------------------------- opening
+async function open(im) {
+  if (!im) return;
+  current = im; selMeas = null;
+  const vh = visibleHots(im);
+  selHot = (vh.find(h => hotStatus(im.file, h.id) === "todo") || vh[0])?.id ?? null;
+  document.querySelectorAll(".item").forEach(el => el.classList.toggle("on", el.dataset.f === im.file));
+  $("#list .item.on")?.scrollIntoView({ block: "nearest" });
+  T = await loadTemps(im.file);
+  if (current !== im) return;
+  if (tab === "analyse") ensureAnalysis(im);
+  renderKey = ""; fit(); focusSel(); ensureOverlays(); draw(); renderRight(); renderToolbar();
+}
+function focusSel() {
+  // in review mode zoom a little towards the selected hotspot if it is tiny
+  if (tab !== "review" || selHot == null) return;
+  const h = current.hotspots.find(h => h.id === selHot); if (!h) return;
+  const w = h.bbox[2] - h.bbox[0], hh = h.bbox[3] - h.bbox[1];
+  if (Math.max(w, hh) > 40) return;
+}
+function ensureAnalysis(im) {
+  const s = st(im.file);
+  if (!s.analysis) {
+    s.analysis = { include: true, palette: "iron", measurements: [], details: { tower: realHots(im)[0]?.asset || "" } };
+    realHots(im).forEach((h, i) => s.analysis.measurements.push({ type: "box", label: "Ar" + (i + 1),
+      pts: [[Math.max(0, h.bbox[0] - 2), Math.max(0, h.bbox[1] - 2)], [h.bbox[2] + 2, h.bbox[3] + 2]] }));
+    save();
+  }
+  s.analysis.measurements ??= []; s.analysis.details ??= {};
+}
+
+// ------------------------------------------------------------ review actions
+function selectHot(id) { selHot = id; draw(); renderRight(); }
+function moveHot(dir) {
+  const vh = visibleHots(current); if (!vh.length) return;
+  const i = vh.findIndex(h => h.id === selHot);
+  selectHot(vh[Math.max(0, Math.min(vh.length - 1, i + dir))].id);
+}
+function mark(status, id = selHot) {
+  if (!current || id == null) return;
+  const s = st(current.file);
+  const prev = s.hotspots[id]?.status;
+  s.hotspots[id] = status === prev ? {} : (status === "fp" ? { status, reason } : { status });
+  save();
+  const vh = visibleHots(current), next = vh.find(h => hotStatus(current.file, h.id) === "todo");
+  if (next) selHot = next.id;
+  draw(); renderRight(); refreshItem();
+  if (!next && counts(current).todo === 0 && F.status === "todo") setTimeout(nextUnreviewed, 250);
+}
+function markRest(status, which = () => true) {
+  if (!current) return;
+  const s = st(current.file);
+  for (const h of visibleHots(current)) if (hotStatus(current.file, h.id) === "todo" && which(h)) s.hotspots[h.id] = status === "fp" ? { status, reason } : { status };
+  const left = visibleHots(current).find(h => hotStatus(current.file, h.id) === "todo");
+  if (left) selHot = left.id;
+  save(); draw(); renderRight(); refreshItem();
+  if (!left && F.status === "todo") setTimeout(nextUnreviewed, 250);
+}
+function refreshItem() {
+  const keep = current;
+  renderList();
+  if (keep && !ITEMS.includes(keep)) { /* stays open even if filtered out */ }
+  document.querySelectorAll(".item").forEach(el => el.classList.toggle("on", el.dataset.f === keep?.file));
+}
+
+// ------------------------------------------------------------ analyse actions
+function setTool(t) { tool = t; renderToolbar(); cv.style.cursor = t === "select" ? "default" : "crosshair"; }
+function delMeas(m) {
+  const a = st(current.file).analysis; a.measurements = a.measurements.filter(x => x !== m);
+  if (selMeas === m) selMeas = null; save(); renderRight(); draw();
+}
+
+// ------------------------------------------------------------ right panels
+function visualBlock(im, boxes) {
+  return `<h2>Visual (zoom camera)</h2><div class="vis" id="vis"><img id="visimg" src="/api/visual/${encodeURIComponent(im.file)}?w=1400"
+    onerror="this.parentNode.innerHTML='<div class=empty>No matching _Z photo</div>'"></div>
+    <div class="dim" id="visnote"></div>`;
+}
+async function placeVisualMarks(im, boxes) {
+  const img = $("#visimg"); if (!img) return;
+  const r = await fetch("/api/visualmap/" + encodeURIComponent(im.file)).then(r => r.json());
+  if (!r.ok) return;
+  const place = () => {
+    const k = img.clientWidth / r.w; let outside = 0;
+    img.parentNode.querySelectorAll(".mark").forEach(m => m.remove());
+    for (const b of boxes) {
+      const pad = 6;
+      const zx0 = r.w / 2 + (b[0] - pad - T.w / 2) * r.scale, zy0 = r.h / 2 + (b[1] - pad - T.h / 2) * r.scale;
+      const zx1 = r.w / 2 + (b[2] + pad - T.w / 2) * r.scale, zy1 = r.h / 2 + (b[3] + pad - T.h / 2) * r.scale;
+      if (zx1 < 0 || zy1 < 0 || zx0 > r.w || zy0 > r.h) { outside++; continue; }
+      const d = document.createElement("div"); d.className = "mark";
+      Object.assign(d.style, { left: zx0 * k + "px", top: zy0 * k + "px", width: Math.max(6, (zx1 - zx0) * k) + "px", height: Math.max(6, (zy1 - zy0) * k) + "px" });
+      img.parentNode.appendChild(d);
+    }
+    $("#visnote").textContent = outside ? `${outside} marked area(s) fall outside the zoom camera frame` : `zoom ×${(r.scale).toFixed(1)} relative to thermal`;
+  };
+  img.complete ? place() : (img.onload = place);
+}
+
+function renderRight() {
+  const R = $("#right");
+  if (!current) { R.innerHTML = `<div class="empty">Select a photo on the left.</div>`; return; }
+  if (tab === "review") {
+    const vh = visibleHots(current), h = vh.find(h => h.id === selHot);
+    R.innerHTML = `
+      <h2>${esc(current.file)}</h2>
+      <div class="dim">${esc(current.group)} · ${esc(current.utc)} UTC</div>
+      ${h ? `<div class="note">#${h.id}: ${fmt(h.max_temp)} °C, +${fmt(h.delta_t)} °C over ${fmt(h.background)} °C${h.range_m ? `, ~${h.range_m.toFixed(0)} m away` : ""}${h.parallax ? `<br>Parallax: <b>${esc(h.parallax)}</b>${h.parallax_shift != null ? ` (shift ${fmt(h.parallax_shift)} px vs ground)` : ""}` : ""}${h.note ? `<br>${esc(h.note)}` : ""}</div>` : ""}
+      <div class="row"><button class="btn real ${hotStatus(current.file, selHot) === "real" ? "on" : ""}" id="b-real">✓ Real defect <kbd>R</kbd></button>
+        <button class="btn fp ${hotStatus(current.file, selHot) === "fp" ? "on" : ""}" id="b-fp">✗ False positive <kbd>F</kbd></button></div>
+      <div class="row"><span class="dim">Reason</span><select id="reason">${REASONS.map((r, i) => `<option ${r === reason ? "selected" : ""} value="${esc(r)}">${i + 1}. ${esc(r)}</option>`).join("")}</select></div>
+      <div class="row"><button class="btn" id="b-rest">✗ Mark all remaining in photo false positive <kbd>A</kbd></button></div>
+      ${vh.some(x => x.parallax) ? `<div class="row"><button class="btn" id="b-unk">✗ Mark remaining non-elevated false positive <kbd>U</kbd></button></div>` : ""}
+      <div class="row"><button class="btn" id="b-next">Next photo needing review <kbd>N</kbd></button></div>
+      <h2>Hotspots</h2>
+      <table class="hs"><tr><th>#</th><th>ΔT</th><th>Max</th><th>Size</th><th>Asset</th><th></th></tr>
+      ${vh.map(x => { const s = hotStatus(current.file, x.id); return `<tr data-id="${x.id}" class="${x.id === selHot ? "on" : ""}">
+        <td>${x.id}</td><td>+${fmt(x.delta_t)}</td><td>${fmt(x.max_temp)}°</td><td>${x.size_m2 != null ? x.size_m2.toFixed(2) + " m²" : ""}</td>
+        <td>${esc(x.asset)}</td><td>${parBadge(x)}${s === "real" ? '<span class="pill p-real">real</span>' : s === "fp" ? '<span class="pill p-fp">false +</span>' : x.note ? '<span class="pill p-todo">auto-excl</span>' : `<span class="pill ${ptCls(ptOf(x))}">${ptOf(x)}</span>`}</td></tr>`; }).join("")}
+      </table>
+      ${visualBlock(current)}`;
+    R.querySelectorAll("tr[data-id]").forEach(tr => tr.onclick = () => selectHot(tr.dataset.id));
+    $("#b-real").onclick = () => mark("real"); $("#b-fp").onclick = () => mark("fp");
+    $("#b-rest").onclick = () => markRest("fp"); $("#b-next").onclick = nextUnreviewed;
+    if ($("#b-unk")) $("#b-unk").onclick = () => markRest("fp", h => h.parallax !== "elevated");
+    $("#reason").onchange = e => { reason = e.target.value; if (hotStatus(current.file, selHot) === "fp") { st(current.file).hotspots[selHot].reason = reason; save(); draw(); } };
+    placeVisualMarks(current, h ? [h.bbox] : []);
+    return;
+  }
+  // analyse
+  const a = st(current.file).analysis, det = a.details;
+  const ms = a.measurements.map(m => ({ m, s: stats(T, m) }));
+  const { hot, ref, refTxt, dt } = deltaT(current, a);
+  const pt = priorityFor(a.delta_override != null && a.delta_override !== "" ? +a.delta_override : dt);
+  R.innerHTML = `
+    <h2>${esc(current.file)}</h2>
+    <div class="row"><label><input type="checkbox" id="inc" ${a.include !== false ? "checked" : ""}> include in report</label></div>
+    <h2>Measurements</h2>
+    <table class="hs"><tr><th>Label</th><th>Max</th><th>Mean</th><th>Min</th><th></th></tr>
+    ${ms.map(({ m, s }, i) => `<tr data-i="${i}" class="${m === selMeas ? "on" : ""}"><td>${esc(m.label)}</td>
+      <td>${fmt(s?.max)}</td><td>${m.type === "point" ? "" : fmt(s?.mean)}</td><td>${m.type === "point" ? "" : fmt(s?.min)}</td>
+      <td><button class="btn" data-del="${i}" title="delete">✕</button></td></tr>`).join("") || `<tr><td colspan=5 class="dim">Draw a point (P), box (B) or line (L) on the image.</td></tr>`}
+    </table>
+    <div id="live" class="dim"></div>
+    <div class="note"><span class="big">ΔT ${fmt(dt)} °C</span> → <b>${pt}</b><br>
+      hottest area/line max ${fmt(hot)} °C − reference ${fmt(ref)} °C (${esc(refTxt)}).<br>Place a spot (P) on healthy equipment to use it as the reference.</div>
+    <div class="kv">
+      <label>ΔT override</label><input id="d-override" type="number" step="0.1" placeholder="auto" value="${a.delta_override ?? ""}">
+      <label>Priority override</label><select id="p-override"><option value="">auto (${pt})</option>${PRIOS.map(p => `<option ${a.priority_override === p[1] ? "selected" : ""}>${p[1]}</option>`).join("")}</select>
+    </div>
+    <h2>Defect details</h2>
+    <div class="kv">
+      ${[["tower", "Tower No."], ["equipment_label", "Equipment label"], ["location", "Location"], ["area", "Area"], ["equipment", "Equipment"],
+         ["component", "Component"]].map(([k, l]) => `<label>${l}</label><input data-det="${k}" value="${esc(det[k] || "")}" ${k === "location" ? `placeholder="${esc((current.target_lat || current.lat) + ", " + (current.target_lon || current.lon))}"` : ""}>`).join("")}
+      <label>Phase</label><select data-det="phase">${["", "Top", "Middle", "Bottom", "Earth wire", "Red", "White", "Blue"].map(p => `<option ${det.phase === p ? "selected" : ""}>${p}</option>`).join("")}</select>
+      <label>Side</label><input data-det="side" value="${esc(det.side || "")}">
+      <label>Suggested action</label><input data-det="action" value="${esc(det.action || "")}">
+      <label>Notes</label><textarea data-det="notes" rows="3">${esc(det.notes || "")}</textarea>
+    </div>
+    ${visualBlock(current)}`;
+  R.querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = e => { if (e.target.dataset.del) return; selMeas = a.measurements[+tr.dataset.i]; renderRight(); draw(); });
+  R.querySelectorAll("[data-del]").forEach(b => b.onclick = () => delMeas(a.measurements[+b.dataset.del]));
+  R.querySelectorAll("[data-det]").forEach(el => el.oninput = () => { det[el.dataset.det] = el.value; save(); });
+  $("#inc").onchange = e => { a.include = e.target.checked; save(); renderList(); };
+  $("#d-override").oninput = e => { a.delta_override = e.target.value === "" ? null : e.target.value; save(); };
+  $("#d-override").onchange = () => renderRight();
+  $("#p-override").onchange = e => { a.priority_override = e.target.value || null; save(); };
+  const boxes = a.measurements.filter(m => m.type === "box").map(m => [Math.min(m.pts[0][0], m.pts[1][0]), Math.min(m.pts[0][1], m.pts[1][1]), Math.max(m.pts[0][0], m.pts[1][0]), Math.max(m.pts[0][1], m.pts[1][1])]);
+  placeVisualMarks(current, boxes.length ? boxes : realHots(current).map(h => h.bbox));
+}
+function deltaT(im, a) {
+  const ms = a.measurements.map(m => ({ m, s: stats(T, m) })).filter(x => x.s);
+  const areas = ms.filter(x => x.m.type !== "point"), spots = ms.filter(x => x.m.type === "point");
+  const hot = areas.length ? Math.max(...areas.map(x => x.s.max)) : Math.max(...realHots(im).map(h => h.max_temp));
+  let ref, refTxt;
+  if (spots.length) { ref = spots[0].s.max; refTxt = spots[0].m.label + " spot"; }
+  else { ref = Math.min(...realHots(im).map(h => h.background ?? Infinity)); refTxt = "detector’s local background"; }
+  return { hot, ref, refTxt, dt: hot - ref };
+}
+function renderLive(m) {
+  const s = stats(T, m); const el = $("#live"); if (!el || !s) return;
+  el.textContent = m.type === "point" ? `${m.label}: ${fmt(s.max)} °C` : `${m.label}: max ${fmt(s.max)} · mean ${fmt(s.mean)} · min ${fmt(s.min)} °C (${s.n} px)`;
+}
+
+// ------------------------------------------------------ optional overlays
+let OV = { lines: false, sky: false };
+try { Object.assign(OV, JSON.parse(localStorage.getItem("thermalReviewOverlays") || "{}")); } catch {}
+{ const q = new URLSearchParams(location.search).get("ov"); if (q != null) for (const k in OV) OV[k] = q.split(",").includes(k); }
+const linesData = {}, skyImgs = {}, assetImgs = {};
+function overlayToggles() {
+  return `<span class="sep"></span><label title="GIS corridor (blue), projected spans/towers (yellow, dashed), and detected conductors (green)"><input type="checkbox" id="ov-lines" ${OV.lines ? "checked" : ""}> Lines</label>
+    <label title="Area detected as sky – left out of the automatic colour range"><input type="checkbox" id="ov-sky" ${OV.sky ? "checked" : ""}> Sky${T && current ? ` (${Math.round((T.skyFrac || 0) * 100)}%)` : ""}</label>`;
+}
+function bindOverlayToggles() {
+  for (const k of ["lines", "sky"]) {
+    const el = $("#ov-" + k); if (!el) continue;
+    el.onchange = () => { OV[k] = el.checked; try { localStorage.setItem("thermalReviewOverlays", JSON.stringify(OV)); } catch {} ensureOverlays(); draw(); };
+  }
+}
+function ensureOverlays() {
+  if (!current) return;
+  const f = current.file;
+  if (OV.lines && !linesData[f]) {
+    linesData[f] = { pending: true };
+    fetch("/api/lines/" + encodeURIComponent(f)).then(r => r.json()).then(d => {
+      linesData[f] = d.ok ? d : { ok: false, status: d.status || d.error || "not available" };
+      if (d.ok && !assetImgs[f]) { const im = new Image(); im.onload = () => { if (current?.file === f) draw(); }; im.src = "/api/assets/" + encodeURIComponent(f); assetImgs[f] = im; }
+      if (!d.ok && /loading/.test(d.status || "")) setTimeout(() => { delete linesData[f]; ensureOverlays(); }, 3000);
+      if (current?.file === f) draw();
+    }).catch(() => { linesData[f] = { ok: false, status: "failed" }; });
+  }
+  if (OV.sky && !skyImgs[f]) {
+    const im = new Image(); im.onload = () => { if (current?.file === f) draw(); };
+    im.src = "/api/sky/" + encodeURIComponent(f); skyImgs[f] = im;
+  }
+}
+function drawOverlays() {
+  const f = current.file, d = devicePixelRatio;
+  if (OV.sky && skyImgs[f]?.complete && skyImgs[f].naturalWidth) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(skyImgs[f], V.tx, V.ty, T.w * V.s, T.h * V.s);
+  }
+  if (!OV.lines) return;
+  const L = linesData[f];
+  ctx.font = `${11 * d}px system-ui`;
+  if (!L || L.pending) { ctx.fillStyle = "#fff"; ctx.fillText("loading lines…", 10 * d, cv.height - 30 * d); return; }
+  if (!L.ok) { ctx.fillStyle = "#fff"; ctx.fillText("Lines: " + L.status, 10 * d, cv.height - 30 * d); return; }
+  const path = (pts, close) => { ctx.beginPath(); pts.forEach((p, i) => { const [x, y] = toScr(p[0], p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); if (close) ctx.closePath(); ctx.stroke(); };
+  ctx.save();
+  ctx.lineWidth = 1.5 * d; ctx.strokeStyle = "rgba(80,150,255,.85)";
+  for (const c of L.corridor) path(c, true);
+  ctx.setLineDash([6 * d, 5 * d]); ctx.strokeStyle = "rgba(255,220,80,.8)";
+  for (const g of L.gis) path(g.pts, false);
+  ctx.setLineDash([]);
+  // detected conductors (green), rendered server-side as an overlay image
+  const im = assetImgs[f];
+  if (im?.complete && im.naturalWidth) { ctx.imageSmoothingEnabled = false; ctx.drawImage(im, V.tx, V.ty, T.w * V.s, T.h * V.s); }
+  // names: spans at their visible midpoint, towers at the base
+  for (const g of L.gis) {
+    const vis = g.pts.filter(([x, y]) => x >= 0 && y >= 0 && x < T.w && y < T.h);
+    if (!vis.length) continue;
+    const p = g.span ? vis[Math.floor(vis.length / 2)] : vis[0];
+    const [x, y] = toScr(p[0], p[1]), tw = ctx.measureText(g.label).width;
+    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(x + 4 * d, y - 13 * d, tw + 6 * d, 16 * d);
+    ctx.fillStyle = "#ffdc50"; ctx.fillText(g.label, x + 7 * d, y);
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- toolbar
+function renderToolbar() {
+  const tb = $("#toolbar");
+  if (tab === "review") {
+    tb.innerHTML = `<span class="dim" style="padding:0 6px">Click a box to select · scroll to zoom · drag to pan</span>
+      <span class="sep"></span><button id="t-fit">Fit <kbd>0</kbd></button>${overlayToggles()}
+      <select id="t-pal">${Object.keys(PAL).map(p => `<option ${p === palette ? "selected" : ""}>${p}</option>`).join("")}</select>`;
+    $("#t-pal").onchange = e => { palette = e.target.value; renderKey = ""; draw(); };
+    $("#t-fit").onclick = () => { fit(); draw(); };
+    bindOverlayToggles();
+    $("#help").innerHTML = `<kbd>R</kbd> real · <kbd>F</kbd> false + · <kbd>A</kbd> rest of photo false + · <kbd>U</kbd> rest non-elevated false + · <kbd>1</kbd>-<kbd>7</kbd> reason · <kbd>↑</kbd><kbd>↓</kbd> hotspot · <kbd>←</kbd><kbd>→</kbd> photo · <kbd>N</kbd> next to review`;
+    return;
+  }
+  const a = current ? st(current.file).analysis : null;
+  const [lo, hi] = T && current ? currentRange() : [0, 0];
+  tb.innerHTML = `${[["select", "↖ Select/move", "V"], ["point", "+ Spot", "P"], ["box", "▭ Box", "B"], ["line", "╱ Line", "L"]]
+      .map(([t, l, k]) => `<button data-tool="${t}" class="${tool === t ? "on" : ""}">${l} <kbd>${k}</kbd></button>`).join("")}
+    <span class="sep"></span>
+    <select id="t-pal">${Object.keys(PAL).map(p => `<option ${p === (a?.palette || palette) ? "selected" : ""}>${p}</option>`).join("")}</select>
+    <span class="dim">Range</span><input type="number" step="0.5" id="t-lo" value="${lo.toFixed(1)}"><input type="number" step="0.5" id="t-hi" value="${hi.toFixed(1)}">
+    <button id="t-auto">Auto</button><button id="t-fit">Fit <kbd>0</kbd></button>${overlayToggles()}`;
+  tb.querySelectorAll("[data-tool]").forEach(b => b.onclick = () => setTool(b.dataset.tool));
+  bindOverlayToggles();
+  if (!a) return;
+  $("#t-pal").onchange = e => { a.palette = e.target.value; save(); draw(); };
+  $("#t-lo").onchange = e => { a.range_lo = +e.target.value; save(); draw(); };
+  $("#t-hi").onchange = e => { a.range_hi = +e.target.value; save(); draw(); };
+  $("#t-auto").onclick = () => { a.range_lo = a.range_hi = null; save(); renderToolbar(); draw(); };
+  $("#t-fit").onclick = () => { fit(); draw(); };
+  $("#help").innerHTML = `drag to draw · <kbd>V</kbd> select, drag handles to edit · <kbd>Del</kbd> delete · right-drag pans · scroll zooms · <kbd>←</kbd><kbd>→</kbd> photo`;
+}
+
+// ------------------------------------------------------------------ report
+function renderReport() {
+  const r = REVIEW.report;
+  r.weather ??= [{}];
+  const inc = DATA.images.filter(im => realHots(im).length && REVIEW.images[im.file]?.analysis?.include !== false);
+  const notAnalysed = inc.filter(im => !REVIEW.images[im.file]?.analysis).length;
+  const f = (k, l, ph = "") => `<label>${l}</label><input data-rep="${k}" value="${esc(r[k] || "")}" placeholder="${esc(ph)}">`;
+  $("#reportpane").innerHTML = `<div>
+    <h2>Report contents</h2>
+    <div class="note"><b>${inc.length}</b> defect page(s) will be generated (confirmed hotspots, “include in report” ticked).
+      ${notAnalysed ? `<br>${notAnalysed} of them have not been opened in step 2 – they will use the auto-detected box as Ar1.` : ""}
+      <br>Optional: put your logo at <code>report_logo.png</code> next to the scripts to show it in the header.</div>
+    <h2>Transmission inspection details</h2>
+    <div class="kv">${f("inspection_of", "Inspection of", "e.g. circuit name")}${f("noti_no", "Noti No.")}${f("order_no", "Order No.")}
+      ${f("inspector", "Inspection completed by")}${f("report_version", "Report version")}
+      ${f("visual_completed", "Visual inspection completed", "Yes")}${f("visual_faults", "Visual faults", "Nil Detected")}
+      ${f("header_title", "Page header title", "Transmission Line")}${f("header_subtitle", "Page header subtitle", "Non Invasive Inspection Report")}
+      ${f("footer", "Page footer text")}${f("equipment", "Thermal test equipment", "DJI Zenmuse H30T radiometric infrared camera (M400)")}</div>
+    <h2>Weather conditions</h2>
+    <table class="wx"><tr>${["Date", "Start time", "Load", "Wind speed", "Conditions", "Temp.", "Dew point", "Humidity", "Notes", ""].map(h => `<th>${h}</th>`).join("")}</tr>
+      ${r.weather.map((w, i) => `<tr>${["date", "time", "load", "wind", "conditions", "temp", "dew", "humidity", "notes"].map(k => `<td><input data-wx="${i}" data-k="${k}" value="${esc(w[k] || "")}"></td>`).join("")}
+      <td><button class="btn" data-wxdel="${i}">✕</button></td></tr>`).join("")}</table>
+    <button class="btn" id="wx-add">+ add weather row</button>
+    <h2>Notes (cover page)</h2><textarea data-rep="notes" rows="4">${esc(r.notes || "")}</textarea>
+    <h2>Disclaimer / closing text (last page)</h2><textarea data-rep="disclaimer" rows="5">${esc(r.disclaimer || "")}</textarea>
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="gen">Generate PDF report</button><span id="genout" class="dim"></span></div>
+  </div>`;
+  document.querySelectorAll("[data-rep]").forEach(el => el.oninput = () => { r[el.dataset.rep] = el.value; save(); });
+  document.querySelectorAll("[data-wx]").forEach(el => el.oninput = () => { r.weather[+el.dataset.wx][el.dataset.k] = el.value; save(); });
+  document.querySelectorAll("[data-wxdel]").forEach(el => el.onclick = () => { r.weather.splice(+el.dataset.wxdel, 1); save(); renderReport(); });
+  $("#wx-add").onclick = () => { r.weather.push({}); save(); renderReport(); };
+  $("#gen").onclick = async () => {
+    $("#genout").textContent = "generating… (reads each photo, can take a minute)";
+    $("#gen").disabled = true;
+    try {
+      const res = await fetch("/api/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(REVIEW) }).then(r => r.json());
+      if (res.error) throw new Error(res.error);
+      $("#genout").innerHTML = res.pdf ? `${res.defects} defect page(s) · <a href="${res.pdf}" target="_blank" style="color:#4aa3ff">open PDF</a> · saved as thermal_report.pdf in the results folder`
+        : `PDF printer not found – <a href="${res.html}" target="_blank">open the HTML version</a> and print to PDF`;
+      if (res.pdf) window.open(res.pdf, "_blank");
+    } catch (e) { $("#genout").textContent = "failed: " + e.message; }
+    $("#gen").disabled = false;
+  };
+}
+
+// --------------------------------------------------------------- tab switch
+function switchTab(t) {
+  tab = t;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  $("#main").hidden = t === "report"; $("#reportpane").hidden = t !== "report";
+  if (t === "report") { renderReport(); return; }
+  selMeas = null; tool = "select";
+  renderFilters(); renderList();
+  const keep = current && ITEMS.includes(current) ? current : ITEMS[0];
+  current = null; T = null; draw(); renderRight();
+  if (keep) open(keep); else renderToolbar();
+}
+
+async function reloadData() {
+  const q = `?excluded=${showExcluded ? 1 : 0}&undecided=${showUndecided ? 1 : 0}`;
+  $("#list").innerHTML = '<div class="empty">loading…</div>';
+  const d = await fetch("/api/data" + q).then(r => r.json());
+  DATA.images = d.images; DATA.hidden = d.hidden;
+  const keep = current && DATA.images.find(i => i.file === current.file);
+  renderFilters(); renderList();
+  if (keep) { current = keep; renderRight(); draw(); } else if (ITEMS[0]) open(ITEMS[0]);
+}
+
+// ----------------------------------------------------------------- startup
+(async function init() {
+  DATA = await fetch("/api/data?excluded=0&undecided=0").then(r => r.json());
+  REVIEW = DATA.review; REVIEW.images ??= {}; REVIEW.report ??= {};
+  PAL = DATA.palettes; PRIOS = DATA.priorities;
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+  window.addEventListener("resize", () => { fit(); draw(); });
+  const t0 = (location.hash || "#review").slice(1);
+  switchTab(["review", "analyse", "report"].includes(t0) ? t0 : "review");
+})();
+</script>
+</body>
+</html>
